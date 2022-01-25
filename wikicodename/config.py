@@ -1,6 +1,8 @@
 import hashlib
-import os
 import yaml
+from distutils.dir_util import copy_tree
+from distutils.errors import DistutilsFileError, DistutilsInternalError
+from os import listdir, makedirs, path, remove
 from typing import Any, Optional, Union, List
 
 
@@ -45,7 +47,6 @@ class Config:
 
     def __init__(self, base_path: str = 'config/'):
         self.__base_path = base_path
-        self.__cache_directory = None
         self.__wikipedia_url = None
         self.__excluded_sections = None
         self.__profiles = {}
@@ -87,7 +88,6 @@ class Config:
             raise Config.__MissingParameterException(key)
         return parameter
 
-    # TODO refactor
     def __load_profile(self, name: str, data: dict) -> dict:
         if not name:
             raise self.__MissingParameterException('profile/name')
@@ -98,7 +98,7 @@ class Config:
                 'The profile is already defined: {}'.format(name))
         profile = {}
         profile['name'] = name
-        profile['pattern'] = "{{{}}}".format(name)
+        profile['pattern'] = '{{{}}}'.format(name)
         if data:
             profile['transform_case'] = self.__load_parameter(
                 data,
@@ -138,9 +138,7 @@ class Config:
             profile['validation_pattern'] = '.*'
         return profile
 
-    # TODO refactor
     def __load_main(self, data: dict):
-        self.__cache_directory = self.__load_parameter(data, 'cache_directory')
         self.__wikipedia_url = self.__load_parameter(data, 'wikipedia_url')
         self.__excluded_sections = self.__load_parameter(
             data, 'excluded_sections', True, types=list)
@@ -163,7 +161,6 @@ class Config:
         if not self.get_profile('main'):
             raise self.ConfigException('The \'main\' profile is not defined.')
 
-    # TODO refactor
     def __load_code_name_list(self, name: str, data: dict):
         profile_data = self.__load_parameter(data, 'profile', True, dict)
         profile = self.__load_profile(name, profile_data)
@@ -203,16 +200,49 @@ class Config:
         profile['code_name_list'] = code_name_list
         self.__profiles[profile['name']] = profile
 
+    def generate(self):
+        try:
+            makedirs(self.__base_path, exist_ok=True)
+        except OSError as e:
+            raise Config.ConfigException(
+                'Could not create the configuration directory: {}'.format(
+                    self.__base_path),
+                None,
+                e)
+        for file_name in listdir(self.__base_path):
+            file_path = path.join(self.__base_path, file_name)
+            if path.isfile(file_path):
+                file_extension = path.splitext(file_name)[1]
+                if file_extension.lower() != '.yaml':
+                    continue
+                try:
+                    if path.isfile(file_path):
+                        remove(file_path)
+                except Exception as e:
+                    raise Config.ConfigException(
+                        'Could not delete the file: {}'.format(file_path), e)
+        script_directory_path = path.dirname(path.realpath(__file__))
+        default_config_path = path.join(
+            script_directory_path, 'defaults', 'config')
+        try:
+            copy_tree(default_config_path, self.__base_path)
+        except (DistutilsFileError, DistutilsInternalError) as e:
+            raise Config.ConfigException(
+                'Could not copy the default configuration: {} -> {}'.format(
+                    default_config_path, self.__base_path),
+                None,
+                e)
+
     def load(self):
-        if not os.path.isdir(self.__base_path):
+        if not path.isdir(self.__base_path):
             raise Config.ConfigException(
                 'The configuration directory does not exist: {}'.format(
                     self.__base_path))
-        for file_name in os.listdir(self.__base_path):
-            file_path = os.path.join(self.__base_path, file_name)
-            if os.path.isfile(file_path):
-                file_base_name = os.path.splitext(file_name)[0]
-                file_extension = os.path.splitext(file_name)[1]
+        for file_name in listdir(self.__base_path):
+            file_path = path.join(self.__base_path, file_name)
+            if path.isfile(file_path):
+                file_base_name = path.splitext(file_name)[0]
+                file_extension = path.splitext(file_name)[1]
                 if file_extension.lower() != '.yaml':
                     continue
                 try:
@@ -222,7 +252,9 @@ class Config:
                     else:
                         self.__load_code_name_list(
                             file_base_name.lower(), data)
-                except Config.ConfigException as e:
+                except (Config.__MissingParameterException,
+                        Config.__InvalidParameterTypeException,
+                        Config.__InvalidParameterValueException) as e:
                     raise Config.ConfigException(
                         str(e), file_path, e.source_exception)
         if not self.get_profile('main'):
@@ -232,9 +264,6 @@ class Config:
         hash = hashlib.sha1()
         hash.update(str(self.__dict__).encode('utf-8'))
         return hash.hexdigest()
-
-    def get_cache_directory(self) -> Optional[str]:
-        return self.__cache_directory
 
     def get_wikipedia_url(self) -> Optional[str]:
         return self.__wikipedia_url

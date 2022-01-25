@@ -1,6 +1,6 @@
-# This is a non-English code name list configuration file.
+# This is a configuration file for a non-English list of code names.
 
-# Note the overriden Wikipedia URL
+# Note the overridden Wikipedia URL.
 wikipedia_url: "https://pl.wikipedia.org/"
 
 profile:
@@ -10,7 +10,7 @@ profile:
 pages:
     - "Gwiazdozbiory_według_nazw_łacińskich"
 
-# Note the overriden list of excluded sections
+# Note the overridden list of excluded sections.
 excluded_sections:
     - "Zobacz też"
 

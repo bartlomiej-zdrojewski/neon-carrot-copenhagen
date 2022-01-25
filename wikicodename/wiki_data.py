@@ -33,7 +33,7 @@ class WikiData:
 
     def __init__(
             self,
-            cache: Cache = Cache(),
+            cache: Cache = None,
             wikipedia_url: str = 'https://en.wikipedia.org/'):
         self.__cache = cache
         self.__wikipedia_url = wikipedia_url
@@ -41,6 +41,9 @@ class WikiData:
         self.__max_worker_count: int = 8
         self.__tables: list[etree.Element] = []
         self.__lists: list[etree.Element] = []
+        if not self.__cache:
+            self.__cache = Cache()
+            self.__cache.setup()
 
     def __get_text(self, node: etree.Element) -> Optional[str]:
         if node is None:
@@ -126,10 +129,10 @@ class WikiData:
         if not data:
             data = self.__fetch_url(url)
             if 'parse' not in data or 'text' not in data['parse'] or \
-                    '*' not in data['parse']["text"]:
+                    '*' not in data['parse']['text']:
                 raise WikiData.__FetchException(
                     'The response has an unexpected format.', page_id)
-            data = data["parse"]["text"]["*"]
+            data = data['parse']['text']['*']
             self.__cache.write(url, data)
         return data
 

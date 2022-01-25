@@ -1,15 +1,11 @@
 # This is the main configuration file. Use it to define the default parameters
-# and the profiles that merge or transform code name lists.
+# and the profiles that merge or transform a list of code names.
 
-# The path to the cache directory. May be relative. [string, required]
-cache_directory: "../cache/"
-# TODO cache_directory: "cache/"
-
-# The default Wikipedia URL. May be overriden in other configuration files.
+# The default Wikipedia URL. May be overridden in other configuration files.
 # [string, required]
 wikipedia_url: "https://en.wikipedia.org/"
 
-# The list of excluded sections. May be overriden in other configuration files.
+# The list of excluded sections. May be overridden in other configuration files.
 # [list<string>, optional]
 excluded_sections:
     - ""
@@ -26,11 +22,11 @@ excluded_sections:
 # [list<object>, required]
 #
 # The {name} property defines a name of the profile. Must be unique, not empty
-# and not contain "{" nor "}" character. The property is case-insensitive.
+# and not contain "{" nor "}" characters. The property is case-insensitive.
 # [string, required]
 #
 # The {pattern} property defines how a code name is generated. Curly brackets
-# are replaced by the values from the coresponding list of names. For examlpe,
+# are replaced by the values from the corresponding list of names. For example,
 # "{city}" may be replaced by "warsaw" or "chicago". [string, required]
 #
 # The {transform_case} property defines if all the letters in the code name
@@ -38,10 +34,10 @@ excluded_sections:
 # they are ("keep", default). [string, optional]
 # 
 # The {transform_space} property defines if all whitespace characters, like
-# spaces and tabulators, should be transformed into other character or string.
-# If property has {true} value or is empty, all whitesapce characters are
+# spaces and tabulators, should be transformed into other characters or strings.
+# If property has {true} value or is empty, all whitespace characters are
 # removed. If {false} value or is not defined, whitespace characters are kept as
-# they are. [string, boolean, optional]
+# they are. [string or boolean, optional]
 #
 # The {transform_unidecode} property defines if all diacritical characters in
 # the code name should be transformed to their closest latin equivalents. For

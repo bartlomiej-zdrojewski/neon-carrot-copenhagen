@@ -1,4 +1,4 @@
-# This is a code name list configuration file.
+# This is a configuration file for a list of code names.
 
 # The code name profile. The properties are the same as in profiles in the main
 # configuration file, except the {pattern} property is missing and the {name}
@@ -25,7 +25,7 @@ pages:
 # [boolean, optional]
 #
 # The {tables} property defines the list of tables' column headers. If a table's
-# colum header is the same as in the list then all the column's values are
+# column header is the same as in the list then all the column's values are
 # included in the list of code names. [list<string>, optional]
 #
 sources:

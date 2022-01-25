@@ -6,7 +6,7 @@ from typing import List, Dict
 from unidecode import unidecode
 from .cache import Cache
 from .config import Config
-from .wikidata import WikiData
+from .wiki_data import WikiData
 
 
 class Generator:
@@ -21,17 +21,26 @@ class Generator:
             self.source_exception = source_exception
             if profile_name:
                 super().__init__(
-                    'Could not generate a code name list for the profile: {}\n{}'.format(
-                        profile_name, message))
+                    'Could not generate a list of code names for the profile: '
+                    '{}\n{}'.format(profile_name, message))
             else:
                 super().__init__(message)
 
-    def __init__(self, config: Config = Config(), cache: Cache = Cache(),
-                 max_try_count: int = 64, quiet: bool = False) -> None:
+    def __init__(
+            self,
+            config: Config = None,
+            cache: Cache = None,
+            max_attempt_count: int = 64,
+            quiet: bool = False) -> None:
         self.__config = config
         self.__cache = cache
-        self.__max_try_count = max_try_count
+        self.__max_attempt_count = max_attempt_count
         self.__quiet = quiet
+        if not self.__config:
+            self.__config = Config()
+        if not self.__cache:
+            self.__cache = Cache()
+            self.__cache.setup()
 
     def __parse_pattern(self, pattern: str) -> Dict[str, List[str]]:
         start = 0
@@ -81,24 +90,24 @@ class Generator:
             return None
         return validation_result.group(0)
 
-    # TODO refactor
     def __get_code_name_list(self, profile_name: str) -> None:
         cache_name = 'profile_' + profile_name
         cache_data = self.__cache.read(cache_name)
         if cache_data:
             return json.loads(cache_data)
         if not self.__quiet:
-            print("\r{}Fetching data for the profile: {}{}".format(
+            print('\r{}Fetching data for the profile: {}{}'.format(
                 Fore.YELLOW, profile_name, Fore.RESET),
                 end='')
         code_name_list = []
         profile = self.__config.get_profile(profile_name)
         if not profile:
             raise self.GeneratorException(
-                'The profile is not defined', profile_name)
+                'The profile is not defined.', profile_name)
         if 'code_name_list' not in profile:
             raise self.GeneratorException(
-                'The profile does not define a code name list', profile_name)
+                'The profile does not define a list of code names.',
+                profile_name)
         pages = profile['code_name_list']['pages']
         sources = profile['code_name_list']['sources']
         wikipedia_url = self.__config.get_wikipedia_url()
@@ -111,7 +120,8 @@ class Generator:
         for page in pages:
             if not self.__quiet:
                 print(
-                    "\r{}Fetching data for the profile: {} (page {}/{}){}".format(
+                    '\r{}Fetching data for the profile: {} '
+                    '(page {}/{}){}'.format(
                         Fore.YELLOW,
                         profile_name,
                         pages.index(page) + 1,
@@ -132,29 +142,29 @@ class Generator:
         cache_data = json.dumps(code_name_list)
         self.__cache.write(cache_name, cache_data)
         if not self.__quiet:
-            print("\r{}Fetched data for the profile: {}{}{}".format(
+            print('\r{}Fetched data for the profile: {}{}{}'.format(
                 Fore.GREEN, profile_name, ' ' * (9 + 2 * 4), Fore.RESET))
         return code_name_list
 
-    # TODO refactor
     def __get_code_name(self, profile_name: str) -> str:
-        try_count = 0
+        attempt_count = 0
         code_name = None
         profile = self.__config.get_profile(profile_name)
         if not profile:
             raise self.GeneratorException(
-                'The profile is not defined', profile_name)
+                'The profile is not defined.', profile_name)
         pattern_data = profile['pattern']
         pattern = self.__parse_pattern(pattern_data)
         format_pattern = pattern['format_pattern']
         subprofile_names = pattern['profiles']
         subprofile_count = len(pattern['profiles'])
         if subprofile_count > 1:
-            while not code_name and try_count < self.__max_try_count:
+            while not code_name and attempt_count < self.__max_attempt_count:
                 subprofile_code_names = []
                 if profile_name in subprofile_names:
                     raise self.GeneratorException(
-                        'The user defined pattern must not contain its profile: {}'.format(
+                        'The user defined pattern must not contain its '
+                        'profile: {}'.format(
                             pattern_data),
                         profile_name)
                 for subprofile_name in subprofile_names:
@@ -162,7 +172,7 @@ class Generator:
                         self.__get_code_name(subprofile_name))
                 code_name = self.__format_code_name(
                     format_pattern.format(*subprofile_code_names), profile)
-                try_count += 1
+                attempt_count += 1
         elif subprofile_count == 1:
             subprofile_name = subprofile_names[0]
             if profile_name == subprofile_name:
@@ -174,12 +184,12 @@ class Generator:
                 code_name_index = random.randrange(0, len(code_name_list))
                 code_name = code_name_list[code_name_index]
             else:
-                while not code_name and try_count < self.__max_try_count:
+                while not code_name and attempt_count < self.__max_attempt_count:
                     subprofile_code_name = self.__get_code_name(
                         subprofile_name)
                     code_name = self.__format_code_name(
                         format_pattern.format(subprofile_code_name), profile)
-                    try_count += 1
+                    attempt_count += 1
         else:
             raise self.GeneratorException(
                 'The pattern does not contain any profile: {}'.format(
@@ -187,19 +197,19 @@ class Generator:
                 profile_name)
         if not code_name:
             raise self.GeneratorException(
-                'The maximum number of tries has been reached.')
+                'The maximum number of attempts has been reached.')
         return code_name
 
     def generate(self, profile_name: str, count: int) -> List[str]:
-        try_count = 0
+        attempt_count = 0
         code_name_list: list[str] = []
         try:
             while len(code_name_list) < count and \
-                    try_count < self.__max_try_count:
+                    attempt_count < self.__max_attempt_count:
                 code_name = self.__get_code_name(profile_name)
                 if code_name not in code_name_list:
                     code_name_list.append(code_name)
-                try_count += 1
+                attempt_count += 1
         except Cache.CacheException as e:
             raise self.GeneratorException(
                 str(e), profile_name, e.source_exception)
@@ -208,7 +218,7 @@ class Generator:
                 str(e), profile_name, e.source_exception)
         if len(code_name_list) < count:
             raise self.GeneratorException(
-                'The maximum number of tries has been reached.')
+                'The maximum number of attempts has been reached.')
         return code_name_list
 
     def generate_all(self, profile_name: str) -> List[str]:
